@@ -1,6 +1,11 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
-import { auth, googleProvider } from "../config/firebase";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+} from "firebase/auth";
+import { auth } from "../config/firebase";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 const AuthContext = createContext(null);
@@ -22,8 +27,13 @@ export function AuthProvider({ children }) {
     return data;
   };
 
-  const signInWithGoogle = async () => {
-    const result = await signInWithPopup(auth, googleProvider);
+  const signUp = async (email, password) => {
+    const result = await createUserWithEmailAndPassword(auth, email, password);
+    return syncWithBackend(result.user);
+  };
+
+  const signIn = async (email, password) => {
+    const result = await signInWithEmailAndPassword(auth, email, password);
     return syncWithBackend(result.user);
   };
 
@@ -50,7 +60,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, isNewUser, signInWithGoogle, logout, getIdToken }}>
+    <AuthContext.Provider value={{ user, loading, isNewUser, signUp, signIn, logout, getIdToken }}>
       {children}
     </AuthContext.Provider>
   );
