@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
 
 /* ─── DESIGN TOKENS ──────────────────────────────────────────
    Font:   Courier New / monospace throughout
@@ -585,6 +586,7 @@ function Done({ major, onGo }) {
 
 export default function Quiz() {
   const navigate = useNavigate();
+  const { markOnboardingComplete } = useAuth();
 
   const [step, setStep] = useState(0);
   const [key,  setKey]  = useState(0);
@@ -601,8 +603,19 @@ export default function Quiz() {
   const go   = n => { setKey(k => k + 1); setStep(n); };
   const next = ()  => go(step + 1);
 
-  // After Done screen, go to dashboard
-  const handleFinish = () => navigate("/dashboard");
+  // Persist quiz answers to backend, mark onboarding done, go to dashboard
+  const handleFinish = async () => {
+    await markOnboardingComplete({
+      major,
+      level,
+      gradYear,
+      interests: [...interests],
+      eventTypes: [...eventTypes],
+      clubs: [...clubs],
+      newsletterOptIn: optIn,
+    });
+    navigate("/dashboard");
+  };
 
   const tog = setter => val =>
     setter(p => { const n = new Set(p); n.has(val) ? n.delete(val) : n.add(val); return n; });

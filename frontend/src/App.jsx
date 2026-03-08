@@ -1,19 +1,24 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./hooks/useAuth";
-import ProtectedRoute from "./components/auth/ProtectedRoute";
-import LoginPage from "./pages/LoginPage";
-import Onboarding from "./pages/Onboarding";
-import Dashboard from "./pages/Dashboard";
+import ProtectedRoute  from "./components/auth/ProtectedRoute";
+
+import LandingPage  from "./pages/LandingPage";
+import LoginPage    from "./pages/LoginPage";
+import SignupPage   from "./pages/SignupPage";
+import Onboarding   from "./pages/Onboarding";
+import Dashboard    from "./pages/Dashboard";
 
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {/* Public */}
-          <Route path="/login" element={<LoginPage />} />
+          {/* ── Public ──────────────────────────────────────── */}
+          <Route path="/"       element={<LandingPage />} />
+          <Route path="/login"  element={<LoginPage   />} />
+          <Route path="/signup" element={<SignupPage   />} />
 
-          {/* Requires auth; onboarding not yet complete */}
+          {/* ── Auth required, onboarding NOT yet done ───────── */}
           <Route
             path="/onboarding"
             element={
@@ -23,7 +28,7 @@ export default function App() {
             }
           />
 
-          {/* Requires auth + completed onboarding */}
+          {/* ── Auth required + onboarding done ─────────────── */}
           <Route
             path="/dashboard"
             element={
@@ -33,8 +38,8 @@ export default function App() {
             }
           />
 
-          {/* Catch-all */}
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          {/* ── Catch-all ────────────────────────────────────── */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

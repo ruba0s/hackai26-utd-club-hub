@@ -39,20 +39,21 @@ function Field({ label, type="text", value, onChange, onKeyDown }) {
 
 const getFriendlyError = (code) => {
   switch (code) {
-    case "auth/invalid-email":      return "Invalid email address.";
-    case "auth/user-not-found":     return "No account found with this email.";
-    case "auth/wrong-password":     return "Incorrect password.";
-    case "auth/invalid-credential": return "Incorrect email or password.";
-    default:                        return "Something went wrong. Please try again.";
+    case "auth/invalid-email":        return "Invalid email address.";
+    case "auth/email-already-in-use": return "An account with this email already exists.";
+    case "auth/weak-password":        return "Password must be at least 6 characters.";
+    default:                          return "Something went wrong. Please try again.";
   }
 };
 
-export default function LoginPage() {
+export default function SignupPage() {
   const navigate          = useNavigate();
-  const { user, loading, signIn } = useAuth();
+  const { user, loading, signUp } = useAuth();
 
+  const [name,     setName]     = useState("");
   const [email,    setEmail]    = useState("");
   const [password, setPassword] = useState("");
+  const [confirm,  setConfirm]  = useState("");
   const [error,    setError]    = useState("");
   const [busy,     setBusy]     = useState(false);
 
@@ -65,11 +66,13 @@ export default function LoginPage() {
 
   const handleSubmit = async () => {
     setError("");
-    if (!email || !password) return setError("Please fill in all fields.");
+    if (!name || !email || !password || !confirm) return setError("Please fill in all fields.");
+    if (password !== confirm) return setError("Passwords don't match.");
+    if (password.length < 6)  return setError("Password must be at least 6 characters.");
     setBusy(true);
     try {
-      const data = await signIn(email, password);
-      navigate(data.user.onboardingComplete ? "/dashboard" : "/onboarding");
+      await signUp(email, password, name);
+      navigate("/onboarding");
     } catch (err) {
       setError(getFriendlyError(err.code));
     } finally {
@@ -89,8 +92,8 @@ export default function LoginPage() {
     }}>
       {/* Glows */}
       <div style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:0 }}>
-        <div style={{ position:"absolute", left:"22%", top:"70%", width:460, height:460, transform:"translate(-50%,-50%)", borderRadius:"50%", background:"rgba(140,60,10,0.5)",  filter:"blur(110px)" }}/>
-        <div style={{ position:"absolute", left:"72%", top:"42%", width:320, height:320, transform:"translate(-50%,-50%)", borderRadius:"50%", background:"rgba(100,105,18,0.3)", filter:"blur(100px)" }}/>
+        <div style={{ position:"absolute", left:"18%", top:"68%", width:480, height:480, transform:"translate(-50%,-50%)", borderRadius:"50%", background:"rgba(140,60,10,0.5)",  filter:"blur(110px)" }}/>
+        <div style={{ position:"absolute", left:"78%", top:"38%", width:340, height:340, transform:"translate(-50%,-50%)", borderRadius:"50%", background:"rgba(100,105,18,0.32)",filter:"blur(100px)" }}/>
       </div>
 
       {/* Logo */}
@@ -106,16 +109,18 @@ export default function LoginPage() {
       <div style={{
         position:"relative", zIndex:10,
         background:CARD, borderRadius:16,
-        padding:"40px 40px", width:"100%", maxWidth:420,
-        display:"flex", flexDirection:"column", gap:22,
+        padding:"36px 40px", width:"100%", maxWidth:460,
+        display:"flex", flexDirection:"column", gap:18,
         animation:"fadeUp 0.35s cubic-bezier(0.4,0,0.2,1) forwards",
       }}>
         <h1 style={{ fontFamily:FONT, fontSize:"1.8rem", fontWeight:700, color:"#fff", textAlign:"center", letterSpacing:"-0.5px" }}>
-          Login
+          Sign up
         </h1>
 
-        <Field label="Email"    type="email"    value={email}    onChange={e=>setEmail(e.target.value)}    onKeyDown={onKey}/>
-        <Field label="Password" type="password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={onKey}/>
+        <Field label="Name"             type="text"     value={name}     onChange={e=>setName(e.target.value)}     onKeyDown={onKey}/>
+        <Field label="Email"            type="email"    value={email}    onChange={e=>setEmail(e.target.value)}    onKeyDown={onKey}/>
+        <Field label="Password"         type="password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={onKey}/>
+        <Field label="Confirm Password" type="password" value={confirm}  onChange={e=>setConfirm(e.target.value)}  onKeyDown={onKey}/>
 
         {error && <p style={{ fontFamily:FONT, fontSize:"0.8rem", color:"#ff6b6b", textAlign:"center" }}>{error}</p>}
 
@@ -128,7 +133,7 @@ export default function LoginPage() {
             cursor: busy ? "not-allowed" : "pointer", transition:"all 0.15s",
           }}
         >
-          {busy ? "Logging in…" : "Login"}
+          {busy ? "Creating account…" : "Get Started"}
         </button>
 
         {/* Divider */}
@@ -138,7 +143,7 @@ export default function LoginPage() {
           <div style={{ flex:1, height:1, background:BR }}/>
         </div>
 
-        {/* Google placeholder */}
+        {/* Google placeholder — no-op until backend ready */}
         <button
           disabled
           style={{
@@ -158,10 +163,10 @@ export default function LoginPage() {
         </button>
 
         <p style={{ fontFamily:FONT, fontSize:"0.8rem", color:MU, textAlign:"center" }}>
-          Don't have an account?{" "}
-          <button onClick={() => navigate("/signup")}
-            style={{ background:"none", border:"none", fontFamily:FONT, fontSize:"0.8rem", color:"#7b9fff", cursor:"pointer", textDecoration:"underline" }}>
-            Sign up here!
+          Have an account?{" "}
+          <button onClick={() => navigate("/login")}
+            style={{ background:"none", border:"none", fontFamily:FONT, fontSize:"0.8rem", color:Y, cursor:"pointer", textDecoration:"underline" }}>
+            Login Here!
           </button>
         </p>
       </div>
