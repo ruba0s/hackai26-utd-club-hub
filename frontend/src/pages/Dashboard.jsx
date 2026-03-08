@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import clubhubLogo from "../assets/clubhubLogo.png";
 
 // ─── TOKENS ──────────────────────────────────────────────────
 const BG      = "#0a0a0a";
@@ -29,7 +30,6 @@ const TAG_COLORS = {
   SOCIAL:      "#CC44FF",
 };
 
-// Pool of colors to assign dynamically to followed clubs
 const CLUB_COLOR_POOL = [
   "#4A9EFF","#FF5A00","#CC44FF","#22CC88","#FF2D78",
   "#FFB800","#00CCCC","#FF6B35","#7B35E8","#00AA44",
@@ -38,7 +38,6 @@ const CLUB_COLOR_POOL = [
 function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
 function firstDOW(y, m)    { return new Date(y, m - 1, 1).getDay(); }
 
-// Format a datetime string to "6:00 PM"
 function formatTime(dt) {
   if (!dt) return "";
   const d = new Date(dt);
@@ -47,6 +46,7 @@ function formatTime(dt) {
 }
 
 // ─── LEFT SIDEBAR ─────────────────────────────────────────────
+// UI from doc1 (uses clubhubLogo image asset)
 function LeftSidebar({ onLogout, user, clubs, clubColorMap }) {
   const [hov, setHov] = useState(null);
   const navItems = [
@@ -67,13 +67,8 @@ function LeftSidebar({ onLogout, user, clubs, clubColorMap }) {
       display:"flex", flexDirection:"column",
       height:"100vh", position:"sticky", top:0,
     }}>
-      <div style={{ padding:"20px 18px 16px", display:"flex", alignItems:"center", gap:10 }}>
-        <div style={{ width:38, height:38, borderRadius:10, background:Y, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>✦</div>
-        <div>
-          <div style={{ fontFamily:DISPLAY, fontSize:17, color:"#fff", lineHeight:1.1, letterSpacing:"0.5px" }}>
-            UTD<br/>ClubHub
-          </div>
-        </div>
+      <div style={{ padding:"20px 18px 16px", display:"flex", alignItems:"center" }}>
+        <img src={clubhubLogo} alt="ClubHub" style={{ height:36, width:"auto", display:"block" }} />
       </div>
 
       <div style={{ height:1, background:BORDER, margin:"0 16px 6px" }}/>
@@ -110,9 +105,7 @@ function LeftSidebar({ onLogout, user, clubs, clubColorMap }) {
               onMouseLeave={e => e.currentTarget.style.background="transparent"}
             >
               <div style={{ width:8, height:8, borderRadius:"50%", background: clubColorMap[club.clubId] || "#888", flexShrink:0 }}/>
-              <span style={{ fontFamily:BODY, fontSize:"0.8rem", color:TX2 }}>
-                {club.clubName}
-              </span>
+              <span style={{ fontFamily:BODY, fontSize:"0.8rem", color:TX2 }}>{club.clubName}</span>
             </div>
           ))}
           <div style={{ display:"flex", alignItems:"center", gap:10, padding:"7px 10px", borderRadius:7 }}>
@@ -147,38 +140,33 @@ function LeftSidebar({ onLogout, user, clubs, clubColorMap }) {
 }
 
 // ─── TOP BAR ──────────────────────────────────────────────────
+// UI from doc1 (centered nav + heading, Today pinned right)
 function TopBar({ year, month, onPrev, onNext, onToday, filters, setFilters, clubs, clubColorMap }) {
   const filterRef = useRef(null);
-  const [dropOpen, setDropOpen] = useState(false);
 
   useEffect(() => {
-    const fn = e => { if (filterRef.current && !filterRef.current.contains(e.target)) setDropOpen(false); };
+    const fn = e => { if (filterRef.current && !filterRef.current.contains(e.target)) {} };
     document.addEventListener("mousedown", fn);
     return () => document.removeEventListener("mousedown", fn);
   }, []);
 
-  const toggle    = key => setFilters(p => ({ ...p, [key]: !p[key] }));
+  const toggle     = key => setFilters(p => ({ ...p, [key]: !p[key] }));
   const hasFilters = Object.values(filters).some(Boolean);
 
   return (
     <div style={{ background:TOPBAR, borderBottom:`1px solid ${BORDER}`, flexShrink:0 }}>
-      <div style={{ display:"flex", alignItems:"flex-end", gap:20, padding:"16px 24px 0" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:"14px 24px 0", position:"relative" }}>
+        {/* Centered nav + heading */}
+        <div style={{ display:"flex", alignItems:"center", gap:14 }}>
           <button onClick={onPrev} style={arrowBtn}>‹</button>
-          <h1 style={{ fontFamily:DISPLAY, fontSize:"clamp(2rem,3.5vw,2.8rem)", color:"#fff", letterSpacing:"1px", lineHeight:1, margin:0, minWidth:220 }}>
-            {MONTH_NAMES[month-1].toUpperCase()}<br/>
-            <span style={{ fontSize:"0.6em", color:TX2 }}>{year}</span>
+          <h1 style={{ fontFamily:DISPLAY, fontSize:"clamp(1.6rem,2.8vw,2.2rem)", color:"#fff", letterSpacing:"2px", lineHeight:1, margin:0, whiteSpace:"nowrap" }}>
+            {MONTH_NAMES[month-1].toUpperCase()}{" "}
+            <span style={{ color:TX2 }}>{year}</span>
           </h1>
           <button onClick={onNext} style={arrowBtn}>›</button>
         </div>
-        <div style={{ display:"flex", gap:0, marginBottom:4 }}>
-          {["Month","Week"].map((v,i) => (
-            <button key={v} style={{ padding:"7px 20px", background: i===0 ? Y : "transparent", border: i===0 ? "none" : `1px solid ${BORDER}`, borderRadius: i===0 ? "6px 0 0 6px" : "0 6px 6px 0", fontFamily:BODY, fontSize:"0.78rem", fontWeight: i===0 ? 700 : 400, color: i===0 ? "#111" : TX2, cursor:"pointer" }}>
-              {v}
-            </button>
-          ))}
-        </div>
-        <button onClick={onToday} style={{ padding:"7px 16px", borderRadius:6, background:"transparent", border:`1px solid ${BORDER}`, fontFamily:BODY, fontSize:"0.75rem", color:TX2, cursor:"pointer", marginBottom:4, transition:"all 0.15s" }}
+        {/* Today button pinned to the right */}
+        <button onClick={onToday} style={{ position:"absolute", right:24, padding:"7px 16px", borderRadius:6, background:"transparent", border:`1px solid ${BORDER}`, fontFamily:BODY, fontSize:"0.75rem", color:TX2, cursor:"pointer", transition:"all 0.15s" }}
           onMouseEnter={e=>{e.currentTarget.style.borderColor="#555";e.currentTarget.style.color=TX;}}
           onMouseLeave={e=>{e.currentTarget.style.borderColor=BORDER;e.currentTarget.style.color=TX2;}}
         >Today</button>
@@ -186,19 +174,10 @@ function TopBar({ year, month, onPrev, onNext, onToday, filters, setFilters, clu
 
       <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 24px 14px", overflowX:"auto", scrollbarWidth:"none" }}>
         <span style={{ fontFamily:BODY, fontSize:"0.72rem", fontWeight:600, color:MU, letterSpacing:"1.5px", flexShrink:0 }}>FILTER:</span>
-
         <FilterChip label="✦ AI Recs" active={!!filters.aiRec} color={Y} onClick={() => toggle("aiRec")} />
-
         {clubs.map(club => (
-          <FilterChip
-            key={club.clubId}
-            label={club.clubName}
-            active={!!filters[club.clubId]}
-            color={clubColorMap[club.clubId] || "#888"}
-            onClick={() => toggle(club.clubId)}
-          />
+          <FilterChip key={club.clubId} label={club.clubName} active={!!filters[club.clubId]} color={clubColorMap[club.clubId] || "#888"} onClick={() => toggle(club.clubId)} />
         ))}
-
         {hasFilters && (
           <button onClick={() => setFilters({})} style={{ padding:"5px 12px", borderRadius:20, flexShrink:0, background:"transparent", border:`1px solid ${BORDER}`, fontFamily:BODY, fontSize:"0.72rem", color:MU, cursor:"pointer" }}>
             Clear
@@ -252,20 +231,14 @@ function CalCell({ day, events, selected, isToday, onClick }) {
           {day}
         </span>
       </div>
-
       {shown.map((ev, i) => (
-        <div key={i} style={{
-          display:"flex", alignItems:"center", gap:5,
-          padding:"2px 6px", borderRadius:4,
-          background: ev._color + "22", border:`1px solid ${ev._color}44`, overflow:"hidden",
-        }}>
+        <div key={i} style={{ display:"flex", alignItems:"center", gap:5, padding:"2px 6px", borderRadius:4, background: ev._color + "22", border:`1px solid ${ev._color}44`, overflow:"hidden" }}>
           <span style={{ fontSize:9, flexShrink:0 }}>{ev._emoji}</span>
           <span style={{ fontFamily:BODY, fontSize:"0.62rem", fontWeight:500, color:ev._color, lineHeight:1.3, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
             {ev.eventName}
           </span>
         </div>
       ))}
-
       {overflow > 0 && (
         <span style={{ fontFamily:BODY, fontSize:"0.6rem", color:TX2, paddingLeft:2 }}>+{overflow} more</span>
       )}
@@ -285,20 +258,17 @@ function RightPanel({ day, month, year, events, onClose }) {
   return (
     <div style={{ width:310, flexShrink:0, borderLeft:`1px solid ${BORDER}`, background:PANEL, display:"flex", flexDirection:"column", height:"100%", overflow:"hidden" }}>
       <div style={{ padding:"20px 20px 16px", borderBottom:`1px solid ${BORDER}`, flexShrink:0 }}>
-        {label ? (
-          <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between" }}>
-            <div>
-              <h2 style={{ fontFamily:DISPLAY, fontSize:"2rem", color:"#fff", letterSpacing:"1px", lineHeight:1, margin:0 }}>{label}</h2>
-              <p style={{ fontFamily:BODY, fontSize:"0.76rem", color:TX2, marginTop:6 }}>{events.length} {events.length === 1 ? "event" : "events"}</p>
-            </div>
+        <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between" }}>
+          <div>
+            <h2 style={{ fontFamily:DISPLAY, fontSize:"2rem", color:"#fff", letterSpacing:"1px", lineHeight:1, margin:0 }}>{label || "SELECT A DAY"}</h2>
+            <p style={{ fontFamily:BODY, fontSize:"0.76rem", color:TX2, marginTop:6 }}>
+              {label ? `${events.length} ${events.length === 1 ? "event" : "events"}` : "Click any date on the calendar"}
+            </p>
+          </div>
+          {day && (
             <button onClick={onClose} style={{ background:CARD, border:`1px solid ${BORDER}`, borderRadius:6, color:TX2, fontSize:"0.7rem", cursor:"pointer", padding:"4px 8px", fontFamily:BODY, marginTop:4 }}>✕</button>
-          </div>
-        ) : (
-          <div style={{ textAlign:"center", padding:"10px 0" }}>
-            <p style={{ fontFamily:DISPLAY, fontSize:"1.4rem", color:MU, letterSpacing:"1px" }}>SELECT A DAY</p>
-            <p style={{ fontFamily:BODY, fontSize:"0.72rem", color:MU, marginTop:4 }}>Click any date on the calendar</p>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <div style={{ flex:1, overflowY:"auto", padding:"12px 16px", display:"flex", flexDirection:"column", gap:10 }}>
@@ -308,7 +278,6 @@ function RightPanel({ day, month, year, events, onClose }) {
             <p style={{ fontFamily:BODY, fontSize:"0.72rem", color:MU, marginTop:4 }}>Nothing scheduled this day</p>
           </div>
         )}
-
         {events.map((ev, i) => {
           const done = rsvped[i];
           return (
@@ -324,29 +293,21 @@ function RightPanel({ day, month, year, events, onClose }) {
                   EVENT
                 </span>
               </div>
-
               <div style={{ padding:"0 14px 12px", display:"flex", flexDirection:"column", gap:8 }}>
                 {ev._isAiRec && (
                   <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:`${Y}18`, color:Y, border:`1px solid ${Y}33`, fontFamily:BODY, fontSize:"0.65rem", fontWeight:700, padding:"2px 8px", borderRadius:4, width:"fit-content", letterSpacing:"0.5px" }}>
                     ✦ AI Pick
                   </span>
                 )}
-
                 <h3 style={{ fontFamily:DISPLAY, fontSize:"1.1rem", color:"#fff", letterSpacing:"0.5px", margin:0, lineHeight:1.2 }}>
                   {ev.eventName?.toUpperCase()}
                 </h3>
-
-                <p style={{ fontFamily:BODY, fontSize:"0.72rem", color:ev._color, margin:0 }}>
-                  {ev.organizationName}
-                </p>
-
+                <p style={{ fontFamily:BODY, fontSize:"0.72rem", color:ev._color, margin:0 }}>{ev.organizationName}</p>
                 <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
                   <span style={{ fontFamily:BODY, fontSize:"0.72rem", color:TX2 }}>⏰ {formatTime(ev.startTime)}{ev.endTime ? ` – ${formatTime(ev.endTime)}` : ""}</span>
                   <span style={{ fontFamily:BODY, fontSize:"0.72rem", color:TX2 }}>📍 {ev.location || ev.building || "TBD"}</span>
                 </div>
-
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:2 }}>
-                  <span style={{ fontFamily:BODY, fontSize:"0.78rem", color:TX2 }}>&nbsp;</span>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"flex-end", marginTop:2 }}>
                   <button onClick={() => setRsvped(p => ({ ...p, [i]: !p[i] }))} style={{
                     padding:"7px 18px", borderRadius:7, border:"none",
                     background: done ? "#1a3a1a" : Y,
@@ -402,11 +363,11 @@ export default function Dashboard() {
   const [filters,     setFilters]     = useState({});
 
   // Real data
-  const [followedClubs,  setFollowedClubs]  = useState([]);
-  const [recommendations,setRecommendations]= useState([]);
-  const [events,         setEvents]         = useState([]);
-  const [loadingEvents,  setLoadingEvents]  = useState(false);
-  const [clubColorMap,   setClubColorMap]   = useState({}); // clubId → color
+  const [followedClubs,   setFollowedClubs]   = useState([]);
+  const [recommendations, setRecommendations] = useState([]);
+  const [events,          setEvents]          = useState([]);
+  const [loadingEvents,   setLoadingEvents]   = useState(false);
+  const [clubColorMap,    setClubColorMap]    = useState({});
 
   // Fetch followed clubs once on mount
   useEffect(() => {
@@ -416,12 +377,8 @@ export default function Dashboard() {
       const data  = await res.json();
       const clubs = data.clubs || [];
       setFollowedClubs(clubs);
-
-      // Assign colors from pool
       const map = {};
-      clubs.forEach((club, i) => {
-        map[club.clubId] = CLUB_COLOR_POOL[i % CLUB_COLOR_POOL.length];
-      });
+      clubs.forEach((club, i) => { map[club.clubId] = CLUB_COLOR_POOL[i % CLUB_COLOR_POOL.length]; });
       setClubColorMap(map);
     };
     load().catch(console.error);
@@ -450,30 +407,23 @@ export default function Dashboard() {
         const data  = await res.json();
         const raw   = data.events || [];
 
-        // Enrich each event with display helpers
-        const recNames = new Set((recommendations).map(r => r.name?.toLowerCase().trim()));
-
+        const recNames = new Set(recommendations.map(r => r.name?.toLowerCase().trim()));
         const enriched = raw.map(ev => {
-          const orgLower  = ev.organizationName?.toLowerCase().trim() || "";
-          const isAiRec   = [...recNames].some(n => orgLower.includes(n) || n.includes(orgLower));
-
-          // Find matching followed club for color
+          const orgLower    = ev.organizationName?.toLowerCase().trim() || "";
+          const isAiRec     = [...recNames].some(n => orgLower.includes(n) || n.includes(orgLower));
           const matchedClub = followedClubs.find(c =>
             c.clubName?.toLowerCase().trim() === orgLower ||
             orgLower.includes(c.clubName?.toLowerCase().trim())
           );
-
           const color = isAiRec
             ? Y
             : matchedClub ? (clubColorMap[matchedClub.clubId] || "#888") : "#888";
-
           return {
             ...ev,
             _isAiRec: isAiRec,
             _color:   color,
             _emoji:   isAiRec ? "✦" : "📌",
-            // Parse day from startTime for calendar lookup
-            _day: new Date(ev.startTime).getDate(),
+            _day:     new Date(ev.startTime).getDate(),
           };
         });
 
@@ -488,14 +438,14 @@ export default function Dashboard() {
     load();
   }, [year, month, recommendations, followedClubs, clubColorMap]);
 
-  const prevMonth = () => { setSelectedDay(null); if (month===1){setYear(y=>y-1);setMonth(12);}else setMonth(m=>m-1); };
-  const nextMonth = () => { setSelectedDay(null); if (month===12){setYear(y=>y+1);setMonth(1);}else setMonth(m=>m+1); };
-  const goToday   = () => { setSelectedDay(null); setYear(now.getFullYear()); setMonth(now.getMonth()+1); };
+  const prevMonth    = () => { setSelectedDay(null); if (month===1){setYear(y=>y-1);setMonth(12);}else setMonth(m=>m-1); };
+  const nextMonth    = () => { setSelectedDay(null); if (month===12){setYear(y=>y+1);setMonth(1);}else setMonth(m=>m+1); };
+  const goToday      = () => { setSelectedDay(null); setYear(now.getFullYear()); setMonth(now.getMonth()+1); };
   const handleLogout = async () => { await logout(); navigate("/"); };
 
   // Filter events
   const hasFilters = Object.values(filters).some(Boolean);
-  const visible = hasFilters
+  const visible    = hasFilters
     ? events.filter(ev => {
         if (filters.aiRec && ev._isAiRec) return true;
         const matchedClub = followedClubs.find(c =>
@@ -522,7 +472,7 @@ export default function Dashboard() {
       <link rel="preconnect" href="https://fonts.googleapis.com"/>
       <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 
-      <div style={{ display:"flex", height:"100vh", background:BG, overflow:"hidden" }}>
+      <div style={{ display:"flex", height:"100vh", width:"100vw", background:BG, overflow:"hidden" }}>
         <LeftSidebar onLogout={handleLogout} user={user} clubs={followedClubs} clubColorMap={clubColorMap} />
 
         <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0, overflow:"hidden" }}>
@@ -543,8 +493,7 @@ export default function Dashboard() {
                   </div>
                 ))}
               </div>
-
-              {/* Cells grid — always rendered, loading shown as overlay on cells */}
+              {/* Cells grid */}
               <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", borderLeft:`1px solid ${BORDER}`, borderTop:`1px solid ${BORDER}` }}>
                 {cells.map((day, idx) => {
                   if (!day) return (
@@ -573,7 +522,15 @@ export default function Dashboard() {
       </div>
 
       <style>{`
-        * { box-sizing:border-box; margin:0; padding:0; }
+        html, body, #root {
+          width: 100%;
+          height: 100%;
+          margin: 0;
+          padding: 0;
+          overflow: hidden;
+          background: ${BG};
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         ::-webkit-scrollbar { width:3px; height:3px; }
         ::-webkit-scrollbar-track { background:transparent; }
         ::-webkit-scrollbar-thumb { background:#2a2a2a; border-radius:2px; }
