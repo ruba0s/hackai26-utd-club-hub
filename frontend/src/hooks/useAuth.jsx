@@ -51,6 +51,11 @@ export function AuthProvider({ children }) {
 
   const getIdToken = () => auth.currentUser?.getIdToken();
 
+  // Call this after quiz submit to refresh user state locally
+  const refreshUser = (updatedFields) => {
+    setUser(prev => ({ ...prev, ...updatedFields }));
+  };
+
   useEffect(() => {
     return onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) await syncWithBackend(fbUser);
@@ -60,7 +65,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, isNewUser, signUp, signIn, logout, getIdToken }}>
+    <AuthContext.Provider value={{ user, loading, isNewUser, signUp, signIn, logout, getIdToken, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

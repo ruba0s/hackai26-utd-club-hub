@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
 
 /* ─── DESIGN TOKENS ──────────────────────────────────────────
    Font:   Courier New / monospace throughout
@@ -391,8 +392,9 @@ const ALL_CLUBS = [
   "Photography Club", "Debate Team", "Esports Club", "Pre-Dental Society",
 ];
 
-function Q5Clubs({ search, setSearch, selected, toggle, onNext }) {
-  const visible = ALL_CLUBS.filter(c => c.toLowerCase().includes(search.toLowerCase()));
+function Q5Clubs({ search, setSearch, selected, toggle, onNext, clubs: clubList, loadingClubs }) {
+  const visible = clubList.filter(c => c.toLowerCase().includes(search.toLowerCase()));
+
   return (
     <div style={{ width: "100%", maxWidth: 700 }}>
       <p style={{ fontFamily: FONT, fontSize: "0.72rem", color: MU, letterSpacing: "2px", marginBottom: 10 }}>QUESTION 5 OF 6</p>
@@ -403,48 +405,45 @@ function Q5Clubs({ search, setSearch, selected, toggle, onNext }) {
         autoFocus
         value={search}
         onChange={e => setSearch(e.target.value)}
-        placeholder=""
+        placeholder="Search clubs..."
         style={{
           width: "100%", background: C2,
           border: `2px solid ${Y}`,
           borderRadius: 10, padding: "14px 18px",
           fontFamily: FONT, fontSize: "0.95rem", color: "#fff",
-          outline: "none", marginBottom: 12,
-          caretColor: Y,
+          outline: "none", marginBottom: 12, caretColor: Y,
         }}
       />
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 295, overflowY: "auto", marginBottom: 14, scrollbarWidth: "none" }}>
-        {visible.map(c => {
-          const on = selected.has(c);
-          return (
-            <button
-              key={c}
-              onClick={() => toggle(c)}
-              style={{
-                width: "100%", textAlign: "left",
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                padding: "17px 20px",
-                borderRadius: 9,
-                border: on ? `1.5px solid ${Y}` : `1.5px solid ${BR}`,
-                background: on ? "rgba(253,253,163,0.04)" : C1,
-                color: on ? Y : TX,
-                fontFamily: FONT, fontSize: "0.95rem",
-                cursor: "pointer", transition: "all 0.15s",
-                flexShrink: 0,
-              }}
-            >
-              <span>{c}</span>
-              <span style={{
-                width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
-                border: on ? `2px solid ${Y}` : `2px solid ${MU}`,
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                {on && <span style={{ width: 10, height: 10, borderRadius: "50%", background: Y, display: "block" }} />}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      {loadingClubs ? (
+        <p style={{ fontFamily: FONT, color: MU, fontSize: "0.85rem", marginBottom: 12 }}>Loading clubs…</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 295, overflowY: "auto", marginBottom: 14, scrollbarWidth: "none" }}>
+          {visible.map(c => {
+            const on = selected.has(c);
+            return (
+              <button
+                key={c}
+                onClick={() => toggle(c)}
+                style={{
+                  width: "100%", textAlign: "left",
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "17px 20px", borderRadius: 9,
+                  border: on ? `1.5px solid ${Y}` : `1.5px solid ${BR}`,
+                  background: on ? "rgba(253,253,163,0.04)" : C1,
+                  color: on ? Y : TX,
+                  fontFamily: FONT, fontSize: "0.95rem",
+                  cursor: "pointer", transition: "all 0.15s", flexShrink: 0,
+                }}
+              >
+                <span>{c}</span>
+                <span style={{ width: 22, height: 22, borderRadius: "50%", flexShrink: 0, border: on ? `2px solid ${Y}` : `2px solid ${MU}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {on && <span style={{ width: 10, height: 10, borderRadius: "50%", background: Y, display: "block" }} />}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
       <ContinueBtn onClick={onNext} />
     </div>
   );
@@ -501,19 +500,33 @@ function Q6Newsletter({ optIn, setOptIn, onNext }) {
   );
 }
 
-function Loading({ onDone }) {
+function Loading({ onDone, apiReady }) {
   const [idx, setIdx] = useState(0);
+  const [animDone, setAnimDone] = useState(false);
   const msgs = ["Analyzing your profile…", "Matching clubs to your vibe…", "Ranking this week's events…", "Making your mark ✦"];
 
+  // Run the message ticker once on mount
   useEffect(() => {
     const t = setInterval(() => {
       setIdx(i => {
-        if (i >= msgs.length - 1) { clearInterval(t); setTimeout(onDone, 700); return i; }
+        if (i >= msgs.length - 1) {
+          clearInterval(t);
+          setAnimDone(true);
+          return i;
+        }
         return i + 1;
       });
     }, 620);
     return () => clearInterval(t);
-  }, [onDone]);
+  }, []); // empty deps — run once, never re-run
+
+  // Advance only when BOTH animation finished and API returned
+  useEffect(() => {
+    if (animDone && apiReady) {
+      const t = setTimeout(onDone, 700);
+      return () => clearTimeout(t);
+    }
+  }, [animDone, apiReady, onDone]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 28, textAlign: "center" }}>
@@ -548,7 +561,8 @@ function Loading({ onDone }) {
   );
 }
 
-function Done({ major, onGo }) {
+function Done({ major, recommendations, onGo }) {
+  const preview = (recommendations || []).slice(0, 3);
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 20, textAlign: "center", padding: "0 24px" }}>
       <div style={{ width: 72, height: 72, borderRadius: 14, background: Y, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, color: "#111" }}>✦</div>
@@ -556,23 +570,21 @@ function Done({ major, onGo }) {
         Your mark is<br /><span style={{ color: Y }}>made.</span>
       </h2>
       <p style={{ fontFamily: FONT, fontSize: "0.9rem", color: MU, maxWidth: 400, lineHeight: 1.75 }}>
-        We found clubs and events matched to your {major || "profile"}. Your personalized calendar is ready.
+        We found clubs matched to your {major || "profile"}. Your personalized calendar is ready.
       </p>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 500, textAlign: "left" }}>
-        {[
-          { e: "💼", n: "ACM Industry Night", w: "Matches your Tech interest" },
-          { e: "🚀", n: "Pitch Workshop",      w: "Great for your year group"  },
-          { e: "🎨", n: "Design Sprint: UX",   w: "Trending in your network"   },
-        ].map((r, i) => (
+        {preview.length > 0 ? preview.map((r, i) => (
           <div key={i} style={{ background: C1, border: `2px solid ${BR}`, borderRadius: 10, padding: "13px 18px", display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 38, height: 38, borderRadius: 8, background: "#222", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>{r.e}</div>
+            <div style={{ width: 38, height: 38, borderRadius: 8, background: "#222", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>🎯</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: FONT, fontSize: "0.88rem", fontWeight: 600, color: "#fff" }}>{r.n}</div>
-              <div style={{ fontFamily: FONT, fontSize: "0.76rem", color: MU, marginTop: 2 }}>{r.w}</div>
+              <div style={{ fontFamily: FONT, fontSize: "0.88rem", fontWeight: 600, color: "#fff" }}>{r.name}</div>
+              <div style={{ fontFamily: FONT, fontSize: "0.76rem", color: MU, marginTop: 2 }}>{r.reason}</div>
             </div>
             <div style={{ background: Y, color: "#111", fontSize: "0.7rem", fontWeight: 700, padding: "3px 10px", borderRadius: 4, flexShrink: 0, fontFamily: FONT }}>Match</div>
           </div>
-        ))}
+        )) : (
+          <p style={{ fontFamily: FONT, color: MU, fontSize: "0.85rem", textAlign: "center" }}>Loading your matches…</p>
+        )}
       </div>
       <div style={{ width: "100%", maxWidth: 500 }}>
         <ContinueBtn onClick={onGo} label="Go to my dashboard →" />
@@ -585,29 +597,100 @@ function Done({ major, onGo }) {
 
 export default function Quiz() {
   const navigate = useNavigate();
+  const { getIdToken, refreshUser } = useAuth();
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
   const [step, setStep] = useState(0);
   const [key,  setKey]  = useState(0);
 
-  const [major,      setMajor]      = useState("");
-  const [level,      setLevel]      = useState("");
-  const [gradYear,   setGradYear]   = useState("");
-  const [interests,  setInterests]  = useState(new Set());
-  const [eventTypes, setEvTypes]    = useState(new Set());
-  const [clubSearch, setClubSearch] = useState("");
-  const [clubs,      setClubs]      = useState(new Set());
-  const [optIn,      setOptIn]      = useState(null);
+  const [major,        setMajor]      = useState("");
+  const [level,        setLevel]      = useState("");
+  const [gradYear,     setGradYear]   = useState("");
+  const [interests,    setInterests]  = useState(new Set());
+  const [eventTypes,   setEvTypes]    = useState(new Set());
+  const [clubSearch,   setClubSearch] = useState("");
+  const [clubs,        setClubs]      = useState(new Set());
+  const [optIn,        setOptIn]      = useState(null);
+  const [nebulaClubs,  setNebulaClubs] = useState([]);
+  const [loadingClubs, setLoadingClubs] = useState(false);
+  const [recommendations, setRecommendations] = useState([]);
+  // Tracks whether the API call has completed (success or error)
+  const [apiReady, setApiReady] = useState(false);
 
   const go   = n => { setKey(k => k + 1); setStep(n); };
   const next = ()  => go(step + 1);
 
-  // After Done screen, go to dashboard
-  const handleFinish = () => navigate("/dashboard");
+  // Fetch real clubs from Nebula when user reaches Q5
+  useEffect(() => {
+    if (step === 6 && nebulaClubs.length === 0) {
+      setLoadingClubs(true);
+      getIdToken().then(token => {
+        fetch(`${API_URL}/api/clubs/search?q=a`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+          .then(r => r.json())
+          .then(data => {
+            const names = (data.clubs || []).map(c => c.name).filter(Boolean);
+            setNebulaClubs(names);
+          })
+          .catch(() => setNebulaClubs([]))
+          .finally(() => setLoadingClubs(false));
+      });
+    }
+  }, [step]);
 
+  // On Loading screen, submit quiz to backend
+  // Use a ref to ensure this only fires once per entry into step 8
+  const submitCalledRef = useRef(false);
+  useEffect(() => {
+    if (step === 8 && !submitCalledRef.current) {
+      submitCalledRef.current = true;
+      setApiReady(false);
+
+      const submit = async () => {
+        try {
+          const token = await getIdToken();
+          const year = `${level} ${gradYear}`.trim();
+          const res = await fetch(`${API_URL}/api/quiz/submit`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              major,
+              year,
+              interests: [...interests],
+              clubs: [...clubs],
+              eventTypes: [...eventTypes],
+              newsletterOptIn: optIn || false,
+            }),
+          });
+          const data = await res.json();
+          if (data.recommendations) {
+            setRecommendations(data.recommendations);
+            refreshUser({ quizCompleted: true });
+          }
+        } catch (err) {
+          console.error("Quiz submit error:", err);
+        } finally {
+          setApiReady(true);
+        }
+      };
+
+      submit();
+    }
+    // Reset the ref when leaving step 8 so it could re-run if user somehow revisits
+    if (step !== 8) {
+      submitCalledRef.current = false;
+    }
+  }, [step]);
+
+  const handleFinish = () => navigate("/dashboard");
   const tog = setter => val =>
     setter(p => { const n = new Set(p); n.has(val) ? n.delete(val) : n.add(val); return n; });
 
-  const TOTAL_Q = 6;
+  const TOTAL_Q  = 6;
   const showLogo = step >= 1 && step <= 8;
   const showProg = step >= 2 && step <= 7;
 
@@ -637,14 +720,14 @@ export default function Quiz() {
       >
         {step === 0 && <Splash       onDone={next} />}
         {step === 1 && <Intro        onNext={next} />}
-        {step === 2 && <Q1Major      major={major}       setMajor={setMajor}       onNext={next} />}
-        {step === 3 && <Q2Year       level={level}       gradYear={gradYear}       setLevel={setLevel} setGradYear={setGradYear} onNext={next} />}
+        {step === 2 && <Q1Major      major={major} setMajor={setMajor} onNext={next} />}
+        {step === 3 && <Q2Year       level={level} gradYear={gradYear} setLevel={setLevel} setGradYear={setGradYear} onNext={next} />}
         {step === 4 && <Q3Interests  selected={interests}  toggle={tog(setInterests)}  onNext={next} />}
         {step === 5 && <Q4EventTypes selected={eventTypes} toggle={tog(setEvTypes)}    onNext={next} />}
-        {step === 6 && <Q5Clubs      search={clubSearch}  setSearch={setClubSearch} selected={clubs} toggle={tog(setClubs)} onNext={next} />}
-        {step === 7 && <Q6Newsletter optIn={optIn}        setOptIn={setOptIn}       onNext={next} />}
-        {step === 8 && <Loading      onDone={next} />}
-        {step === 9 && <Done         major={major}        onGo={handleFinish} />}
+        {step === 6 && <Q5Clubs      search={clubSearch} setSearch={setClubSearch} selected={clubs} toggle={tog(setClubs)} onNext={next} clubs={nebulaClubs} loadingClubs={loadingClubs} />}
+        {step === 7 && <Q6Newsletter optIn={optIn} setOptIn={setOptIn} onNext={next} />}
+        {step === 8 && <Loading      onDone={next} apiReady={apiReady} />}
+        {step === 9 && <Done         major={major} recommendations={recommendations} onGo={handleFinish} />}
       </div>
 
       <style>{`

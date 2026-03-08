@@ -2,9 +2,21 @@
 import express from "express";
 import { db } from "../config/firebase.js";
 import verifyToken from "../middleware/verifyToken.js";
-import { fetchClubById, fetchEventsByMonth } from "../services/nebula.js";
+import { fetchAllClubs, fetchClubById, fetchEventsByMonth } from "../services/nebula.js";
 
 const router = express.Router();
+
+// GET /api/clubs/search?q=
+router.get("/search", verifyToken, async (req, res) => {
+  const q = req.query.q || "a";
+  try {
+    const clubs = await fetchAllClubs(q);
+    return res.status(200).json({ clubs });
+  } catch (err) {
+    console.error("Club search error:", err);
+    return res.status(500).json({ error: "Failed to search clubs." });
+  }
+});
 
 /**
  * POST /api/clubs/:id/follow
