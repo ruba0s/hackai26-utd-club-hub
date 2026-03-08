@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import clubhubLogo from "../assets/clubhubLogo.png";
 
 /* ─── DESIGN TOKENS ──────────────────────────────────────────
    Font:   Courier New / monospace throughout
@@ -46,14 +47,8 @@ function Squiggle({ width = 160 }) {
 
 function Logo() {
   return (
-    <div style={{ position: "fixed", top: 22, left: 28, zIndex: 50 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <span style={{ fontFamily: FONT, fontSize: 18, fontWeight: 700, color: "#fff" }}>
-          ClubHub
-        </span>
-        <span style={{ fontSize: 16 }}>🖊️</span>
-      </div>
-      <Squiggle width={108} />
+    <div style={{ position: "fixed", top: 18, left: 24, zIndex: 50 }}>
+      <img src={clubhubLogo} alt="ClubHub" style={{ height: 40, width: "auto", display: "block" }} />
     </div>
   );
 }
