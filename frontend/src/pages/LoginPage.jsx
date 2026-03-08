@@ -48,7 +48,7 @@ const getFriendlyError = (code) => {
 };
 
 export default function LoginPage() {
-  const navigate          = useNavigate();
+  const navigate = useNavigate();
   const { user, loading, signIn } = useAuth();
 
   const [email,    setEmail]    = useState("");
@@ -56,10 +56,10 @@ export default function LoginPage() {
   const [error,    setError]    = useState("");
   const [busy,     setBusy]     = useState(false);
 
-  // Already logged in — redirect away
+  // Already logged in — redirect away immediately
   useEffect(() => {
     if (!loading && user) {
-      navigate(user.onboardingComplete ? "/dashboard" : "/onboarding", { replace: true });
+      navigate(user.quizCompleted ? "/dashboard" : "/onboarding", { replace: true });
     }
   }, [user, loading, navigate]);
 
@@ -68,8 +68,10 @@ export default function LoginPage() {
     if (!email || !password) return setError("Please fill in all fields.");
     setBusy(true);
     try {
-      const data = await signIn(email, password);
-      navigate(data.user.onboardingComplete ? "/dashboard" : "/onboarding");
+      await signIn(email, password);
+      // useAuth.signIn calls syncWithBackend which sets user in context.
+      // The useEffect above will fire on the next render and navigate correctly.
+      // We don't need to read from the return value here.
     } catch (err) {
       setError(getFriendlyError(err.code));
     } finally {

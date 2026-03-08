@@ -7,31 +7,30 @@ import {
 } from "firebase/auth";
 import { auth } from "../config/firebase";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API_URL    = import.meta.env.VITE_API_URL || "http://localhost:3001";
 const AuthContext = createContext(null);
+
+// Normalize whatever field the backend returns into a consistent shape.
+// Backend may return onboardingComplete or quizCompleted — we always
+// store quizCompleted locally so every component has one source of truth.
+const normalizeUser = (rawUser) => {
+  if (!rawUser) return null;
+  return {
+    ...rawUser,
+    quizCompleted: rawUser.quizCompleted ?? rawUser.onboardingComplete ?? false,
+  };
+};
 
 export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Prevents onAuthStateChanged from firing a duplicate syncWithBackend
-  // immediately after signUp/signIn already did it manually. Without this,
-  // the listener briefly sets loading=true + user=null, causing ProtectedRoute
-  // to redirect to /login before the user lands on /onboarding.
+  // immediately after signUp/signIn already synced manually. Without this,
+  // the listener briefly resets user to null + loading to true, causing
+  // ProtectedRoute to redirect to /login mid-navigation.
   const skipNextAuthChange = useRef(false);
 
-  // Normalize whatever field the backend returns into a consistent shape.
-  // Backend may return onboardingComplete or quizCompleted — we always
-  // store quizCompleted locally so ProtectedRoute has one source of truth.
-  const normalizeUser = (rawUser) => {
-    if (!rawUser) return null;
-    return {
-      ...rawUser,
-      quizCompleted: rawUser.quizCompleted ?? rawUser.onboardingComplete ?? false,
-    };
-  };
-
-  // ── POST /api/auth/session ───────────────────────────────────
   const syncWithBackend = async (fbUser) => {
     const token = await fbUser.getIdToken();
     const res   = await fetch(`${API_URL}/api/auth/session`, {
@@ -43,18 +42,14 @@ export function AuthProvider({ children }) {
     return data;
   };
 
-  // ── signUp ───────────────────────────────────────────────────
   const signUp = async (email, password, name = "") => {
-    skipNextAuthChange.current = true; // suppress the listener's duplicate sync
+    skipNextAuthChange.current = true;
     const result = await createUserWithEmailAndPassword(auth, email, password);
     const token  = await result.user.getIdToken();
     const res    = await fetch(`${API_URL}/api/auth/session`, {
       method:  "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization:  `Bearer ${token}`,
-      },
-      body: JSON.stringify({ name }),
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body:    JSON.stringify({ name }),
     });
     const data = await res.json();
     setUser(normalizeUser(data.user));
@@ -62,65 +57,67 @@ export function AuthProvider({ children }) {
     return data;
   };
 
-  // ── signIn ───────────────────────────────────────────────────
   const signIn = async (email, password) => {
-    skipNextAuthChange.current = true; // suppress the listener's duplicate sync
+    skipNextAuthChange.current = true;
     const result = await signInWithEmailAndPassword(auth, email, password);
     const data   = await syncWithBackend(result.user);
     setLoading(false);
     return data;
   };
 
-  // ── markOnboardingComplete ───────────────────────────────────
+  // Optimistically flips quizCompleted locally so ProtectedRoute lets the
+  // user through to /dashboard immediately, then persists to backend.
   const markOnboardingComplete = async (quizAnswers = {}) => {
-    if (!auth.currentUser) return;
-    const token = await auth.currentUser.getIdToken();
-    const res   = await fetch(`${API_URL}/api/quiz/complete`, {
-      method:  "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization:  `Bearer ${token}`,
-      },
-      body: JSON.stringify(quizAnswers),
-    });
-    const data = await res.json();
-    setUser(normalizeUser(data.user ?? { ...user, quizCompleted: true }));
+    setUser(prev => prev ? { ...prev, quizCompleted: true } : prev);
+    if (auth.currentUser) {
+      try {
+        const token = await auth.currentUser.getIdToken();
+        await fetch(`${API_URL}/api/quiz/complete`, {
+          method:  "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body:    JSON.stringify(quizAnswers),
+        });
+      } catch (err) {
+        console.warn("Failed to persist quiz to backend:", err);
+      }
+    }
   };
 
-  // ── getIdToken ───────────────────────────────────────────────
-  const getIdToken = () => auth.currentUser?.getIdToken();
-
-  // ── logout ───────────────────────────────────────────────────
   const logout = async () => {
     const token = await auth.currentUser?.getIdToken();
     if (token) {
       await fetch(`${API_URL}/api/auth/session`, {
-        method:  "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+        method: "DELETE", headers: { Authorization: `Bearer ${token}` },
       });
     }
     await signOut(auth);
     setUser(null);
   };
 
-  // ── listen to Firebase auth state ───────────────────────────
+  const getIdToken = () => auth.currentUser?.getIdToken();
+
   useEffect(() => {
     return onAuthStateChanged(auth, async (fbUser) => {
-      // If signUp/signIn already synced manually, skip this duplicate fire
+      // Skip duplicate sync fired right after manual signUp/signIn
       if (skipNextAuthChange.current) {
         skipNextAuthChange.current = false;
         return;
       }
-      if (fbUser) await syncWithBackend(fbUser);
-      else setUser(null);
+      if (fbUser) {
+        try {
+          await syncWithBackend(fbUser);
+        } catch {
+          setUser({ uid: fbUser.uid, email: fbUser.email, quizCompleted: false });
+        }
+      } else {
+        setUser(null);
+      }
       setLoading(false);
     });
   }, []);
 
   return (
-    <AuthContext.Provider
-      value={{ user, loading, signUp, signIn, logout, getIdToken, markOnboardingComplete }}
-    >
+    <AuthContext.Provider value={{ user, loading, signUp, signIn, logout, getIdToken, markOnboardingComplete }}>
       {children}
     </AuthContext.Provider>
   );
