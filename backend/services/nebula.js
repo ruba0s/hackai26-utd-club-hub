@@ -96,8 +96,7 @@ export const fetchMonthEvents = async (year, month, clubNames) => {
   );
 
   const allEvents = [];
-
-  results.forEach((result, i) => {
+  results.forEach(result => {
     if (result.status === "fulfilled") {
       const filtered = flattenAndFilterMazevoEvents(result.value, clubNames);
       allEvents.push(...filtered);

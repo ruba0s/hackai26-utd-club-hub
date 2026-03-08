@@ -12,10 +12,12 @@ router.post("/session", verifyToken, async (req, res) => {
 
     if (!userSnap.exists) {
       const newUser = {
-        uid, email,
-        displayName: name || "",
+        uid,
+        email,
+        name: name || "",
         photoURL: picture || "",
-        onboardingComplete: false,
+        quizCompleted: false,
+        newsletterOptIn: false,
         createdAt: new Date().toISOString(),
       };
       await userRef.set(newUser);
@@ -24,6 +26,7 @@ router.post("/session", verifyToken, async (req, res) => {
 
     return res.status(200).json({ user: userSnap.data(), isNewUser: false });
   } catch (err) {
+    console.error("SESSION ERROR:", err);
     return res.status(500).json({ error: "Failed to establish session." });
   }
 });

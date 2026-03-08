@@ -7,24 +7,6 @@ import verifyToken from "../middleware/verifyToken.js";
 const router = express.Router();
 
 /**
- * GET /api/events/:date
- * Single day events (raw, all sources).
- */
-router.get("/:date", verifyToken, async (req, res) => {
-  const { date } = req.params;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD." });
-  }
-  try {
-    const events = await fetchEventsByDate(date);
-    return res.status(200).json({ date, events });
-  } catch (err) {
-    console.error("Events error:", err);
-    return res.status(500).json({ error: "Failed to fetch events." });
-  }
-});
-
-/**
  * GET /api/events/calendar/:year/:month
  * Returns all events for the month filtered to the user's
  * recommended + followed clubs, formatted for the calendar.
@@ -68,6 +50,24 @@ router.get("/calendar/:year/:month", verifyToken, async (req, res) => {
   } catch (err) {
     console.error("Calendar events error:", err);
     return res.status(500).json({ error: "Failed to fetch calendar events." });
+  }
+});
+
+/**
+ * GET /api/events/:date
+ * Single day events (raw, all sources).
+ */
+router.get("/:date", verifyToken, async (req, res) => {
+  const { date } = req.params;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD." });
+  }
+  try {
+    const events = await fetchEventsByDate(date);
+    return res.status(200).json({ date, events });
+  } catch (err) {
+    console.error("Events error:", err);
+    return res.status(500).json({ error: "Failed to fetch events." });
   }
 });
 
