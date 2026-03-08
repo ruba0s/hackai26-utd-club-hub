@@ -7,7 +7,7 @@ import {
 } from "firebase/auth";
 import { auth } from "../config/firebase";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API_URL    = import.meta.env.VITE_API_URL || "http://localhost:3001";
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
@@ -15,36 +15,25 @@ export function AuthProvider({ children }) {
   const [loading,   setLoading]   = useState(true);
   const [isNewUser, setIsNewUser] = useState(false);
 
-  // ── POST /api/auth/session ───────────────────────────────────
-  // Called after every Firebase sign-in so the backend can create/
-  // update the user record and return the full profile incl. onboardingComplete.
   const syncWithBackend = async (fbUser) => {
     const token = await fbUser.getIdToken();
     const res   = await fetch(`${API_URL}/api/auth/session`, {
-      method:  "POST",
+      method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
     setUser(data.user);
-    setIsNewUser(data.isNewUser);
+    setIsNewUser(data.isNewUser ?? false);
     return data;
   };
 
-  // ── signUp ───────────────────────────────────────────────────
-  // Accepts optional `name` so SignupPage can pass it; the backend
-  // receives the Firebase token and can decode the email from it.
-  // If you want name persisted, add it to the POST body below.
   const signUp = async (email, password, name = "") => {
     const result = await createUserWithEmailAndPassword(auth, email, password);
-    // Optionally forward name to backend
-    const token = await result.user.getIdToken();
-    const res   = await fetch(`${API_URL}/api/auth/session`, {
+    const token  = await result.user.getIdToken();
+    const res    = await fetch(`${API_URL}/api/auth/session`, {
       method:  "POST",
-      headers: {
-        "Content-Type":  "application/json",
-        Authorization:   `Bearer ${token}`,
-      },
-      body: JSON.stringify({ name }),
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body:    JSON.stringify({ name }),
     });
     const data = await res.json();
     setUser(data.user);
@@ -52,38 +41,34 @@ export function AuthProvider({ children }) {
     return data;
   };
 
-  // ── signIn ───────────────────────────────────────────────────
   const signIn = async (email, password) => {
     const result = await signInWithEmailAndPassword(auth, email, password);
     return syncWithBackend(result.user);
   };
 
-  // ── markOnboardingComplete ───────────────────────────────────
-  // Called by Quiz when the user finishes. Hits the backend so
-  // onboardingComplete is persisted, then refreshes local user state.
+  // Optimistically flips onboardingComplete locally so ProtectedRoute
+  // lets the user through immediately, then persists to backend.
   const markOnboardingComplete = async (quizAnswers = {}) => {
-    if (!auth.currentUser) return;
-    const token = await auth.currentUser.getIdToken();
-    const res   = await fetch(`${API_URL}/api/quiz/complete`, {
-      method:  "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization:  `Bearer ${token}`,
-      },
-      body: JSON.stringify(quizAnswers),
-    });
-    const data = await res.json();
-    // Backend should return the updated user object
-    setUser(data.user ?? { ...user, onboardingComplete: true });
+    setUser(prev => prev ? { ...prev, onboardingComplete: true } : prev);
+    if (auth.currentUser) {
+      try {
+        const token = await auth.currentUser.getIdToken();
+        await fetch(`${API_URL}/api/quiz/complete`, {
+          method:  "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body:    JSON.stringify(quizAnswers),
+        });
+      } catch (err) {
+        console.warn("Failed to persist quiz to backend:", err);
+      }
+    }
   };
 
-  // ── logout ───────────────────────────────────────────────────
   const logout = async () => {
     const token = await auth.currentUser?.getIdToken();
     if (token) {
       await fetch(`${API_URL}/api/auth/session`, {
-        method:  "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+        method: "DELETE", headers: { Authorization: `Bearer ${token}` },
       });
     }
     await signOut(auth);
@@ -92,19 +77,23 @@ export function AuthProvider({ children }) {
 
   const getIdToken = () => auth.currentUser?.getIdToken();
 
-  // ── listen to Firebase auth state ───────────────────────────
   useEffect(() => {
     return onAuthStateChanged(auth, async (fbUser) => {
-      if (fbUser) await syncWithBackend(fbUser);
-      else setUser(null);
+      if (fbUser) {
+        try {
+          await syncWithBackend(fbUser);
+        } catch {
+          setUser({ uid: fbUser.uid, email: fbUser.email, onboardingComplete: false });
+        }
+      } else {
+        setUser(null);
+      }
       setLoading(false);
     });
   }, []);
 
   return (
-    <AuthContext.Provider
-      value={{ user, loading, isNewUser, signUp, signIn, logout, getIdToken, markOnboardingComplete }}
-    >
+    <AuthContext.Provider value={{ user, loading, isNewUser, signUp, signIn, logout, getIdToken, markOnboardingComplete }}>
       {children}
     </AuthContext.Provider>
   );
