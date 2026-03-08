@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import clubhubLogo from "../assets/clubhubLogo.png";
 
 // ─── TOKENS ──────────────────────────────────────────────────
 const BG      = "#0a0a0a";
@@ -101,17 +102,8 @@ function LeftSidebar({ onLogout, user }) {
       height:"100vh", position:"sticky", top:0,
     }}>
       {/* Logo block */}
-      <div style={{ padding:"20px 18px 16px", display:"flex", alignItems:"center", gap:10 }}>
-        <div style={{
-          width:38, height:38, borderRadius:10,
-          background:Y, display:"flex", alignItems:"center", justifyContent:"center",
-          fontSize:18, flexShrink:0,
-        }}>✦</div>
-        <div>
-          <div style={{ fontFamily:DISPLAY, fontSize:17, color:"#fff", lineHeight:1.1, letterSpacing:"0.5px" }}>
-            UTD<br/>ClubHub
-          </div>
-        </div>
+      <div style={{ padding:"16px 18px 14px" }}>
+        <img src={clubhubLogo} alt="ClubHub" style={{ height:48, width:"auto", display:"block" }} />
       </div>
 
       <div style={{ height:1, background:BORDER, margin:"0 16px 6px" }}/>
@@ -254,49 +246,30 @@ function TopBar({ year, month, onPrev, onNext, onToday, filters, setFilters }) {
       borderBottom:`1px solid ${BORDER}`,
       flexShrink:0,
     }}>
-      {/* Row 1 — month heading + month/week toggle */}
+      {/* Row 1 — month heading inline style matching screenshot */}
       <div style={{
-        display:"flex", alignItems:"flex-end", gap:20,
+        display:"flex", alignItems:"center", gap:16,
         padding:"16px 24px 0",
       }}>
-        {/* Month nav + title */}
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <button onClick={onPrev} style={arrowBtn}>‹</button>
-          <h1 style={{
-            fontFamily:DISPLAY, fontSize:"clamp(2rem,3.5vw,2.8rem)",
-            color:"#fff", letterSpacing:"1px", lineHeight:1, margin:0,
-            minWidth:220,
-          }}>
-            {MONTH_NAMES[month-1].toUpperCase()}<br/>
-            <span style={{ fontSize:"0.6em", color:TX2 }}>{year}</span>
-          </h1>
-          <button onClick={onNext} style={arrowBtn}>›</button>
-        </div>
+        <button onClick={onPrev} style={arrowBtn}>‹</button>
 
-        {/* Month / Week pills */}
-        <div style={{ display:"flex", gap:0, marginBottom:4 }}>
-          {["Month","Week"].map((v,i) => (
-            <button key={v} style={{
-              padding:"7px 20px",
-              background: i===0 ? Y : "transparent",
-              border: i===0 ? "none" : `1px solid ${BORDER}`,
-              borderRadius: i===0 ? "6px 0 0 6px" : "0 6px 6px 0",
-              fontFamily:BODY, fontSize:"0.78rem", fontWeight: i===0 ? 700 : 400,
-              color: i===0 ? "#111" : TX2,
-              cursor:"pointer",
-            }}>
-              {v}
-            </button>
-          ))}
-        </div>
+        <h1 style={{
+          fontFamily:DISPLAY,
+          fontSize:"clamp(1.8rem,3vw,2.4rem)",
+          letterSpacing:"2px", lineHeight:1, margin:0,
+          display:"flex", alignItems:"baseline", gap:12,
+        }}>
+          <span style={{ color:"#fff" }}>{MONTH_NAMES[month-1].toUpperCase()}</span>
+          <span style={{ color:TX2 }}>{year}</span>
+        </h1>
 
-        {/* Today */}
+        <button onClick={onNext} style={arrowBtn}>›</button>
+
         <button onClick={onToday} style={{
-          padding:"7px 16px", borderRadius:6,
+          padding:"6px 18px", borderRadius:7,
           background:"transparent", border:`1px solid ${BORDER}`,
           fontFamily:BODY, fontSize:"0.75rem", color:TX2,
-          cursor:"pointer", marginBottom:4,
-          transition:"all 0.15s",
+          cursor:"pointer", transition:"all 0.15s",
         }}
           onMouseEnter={e=>{e.currentTarget.style.borderColor="#555";e.currentTarget.style.color=TX;}}
           onMouseLeave={e=>{e.currentTarget.style.borderColor=BORDER;e.currentTarget.style.color=TX2;}}

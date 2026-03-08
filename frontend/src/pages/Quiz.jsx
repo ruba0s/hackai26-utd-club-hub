@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import clubhubLogo from "../assets/clubhubLogo.png";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 
@@ -46,14 +47,8 @@ function Squiggle({ width = 160 }) {
 
 function Logo() {
   return (
-    <div style={{ position: "fixed", top: 22, left: 28, zIndex: 50 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <span style={{ fontFamily: FONT, fontSize: 18, fontWeight: 700, color: "#fff" }}>
-          ClubHub
-        </span>
-        <span style={{ fontSize: 16 }}>🖊️</span>
-      </div>
-      <Squiggle width={108} />
+    <div style={{ position: "fixed", top: 18, left: 24, zIndex: 50 }}>
+      <img src={clubhubLogo} alt="ClubHub" style={{ height: 40, width: "auto", display: "block" }} />
     </div>
   );
 }
@@ -152,7 +147,7 @@ function Splash({ onDone }) {
         <h1 style={{ fontFamily: FONT, fontSize: "clamp(2rem,4.5vw,3.2rem)", fontWeight: 700, color: "#fff", lineHeight: 1.2, letterSpacing: "-0.5px" }}>
           Welcome to UTD<br />
           <span style={{ position: "relative", display: "inline-block" }}>
-            ClubHub <span style={{ fontSize: "1.8rem" }}>🖊️</span>
+            <img src={clubhubLogo} alt="ClubHub" style={{ height: 48, width: "auto", verticalAlign: "middle" }} />
           </span>
         </h1>
         <div style={{ display: "flex", justifyContent: "center", marginTop: 2 }}>
@@ -603,17 +598,9 @@ export default function Quiz() {
   const go   = n => { setKey(k => k + 1); setStep(n); };
   const next = ()  => go(step + 1);
 
-  // Persist quiz answers to backend, mark onboarding done, go to dashboard
   const handleFinish = async () => {
-    await markOnboardingComplete({
-      major,
-      level,
-      gradYear,
-      interests: [...interests],
-      eventTypes: [...eventTypes],
-      clubs: [...clubs],
-      newsletterOptIn: optIn,
-    });
+    try { await markOnboardingComplete({ major, level, gradYear, interests:[...interests], eventTypes:[...eventTypes], clubs:[...clubs], newsletterOptIn:optIn }); }
+    catch(e) { console.warn(e); }
     navigate("/dashboard");
   };
 
