@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useRef } from "react";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -11,37 +11,91 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user,    setUser]    = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isNewUser, setIsNewUser] = useState(false);
 
+  // Prevents onAuthStateChanged from firing a duplicate syncWithBackend
+  // immediately after signUp/signIn already did it manually. Without this,
+  // the listener briefly sets loading=true + user=null, causing ProtectedRoute
+  // to redirect to /login before the user lands on /onboarding.
+  const skipNextAuthChange = useRef(false);
+
+  // Normalize whatever field the backend returns into a consistent shape.
+  // Backend may return onboardingComplete or quizCompleted — we always
+  // store quizCompleted locally so ProtectedRoute has one source of truth.
+  const normalizeUser = (rawUser) => {
+    if (!rawUser) return null;
+    return {
+      ...rawUser,
+      quizCompleted: rawUser.quizCompleted ?? rawUser.onboardingComplete ?? false,
+    };
+  };
+
+  // ── POST /api/auth/session ───────────────────────────────────
   const syncWithBackend = async (fbUser) => {
     const token = await fbUser.getIdToken();
-    const res = await fetch(`${API_URL}/api/auth/session`, {
-      method: "POST",
+    const res   = await fetch(`${API_URL}/api/auth/session`, {
+      method:  "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
-    setUser(data.user);
-    setIsNewUser(data.isNewUser);
+    setUser(normalizeUser(data.user));
     return data;
   };
 
-  const signUp = async (email, password) => {
+  // ── signUp ───────────────────────────────────────────────────
+  const signUp = async (email, password, name = "") => {
+    skipNextAuthChange.current = true; // suppress the listener's duplicate sync
     const result = await createUserWithEmailAndPassword(auth, email, password);
-    return syncWithBackend(result.user);
+    const token  = await result.user.getIdToken();
+    const res    = await fetch(`${API_URL}/api/auth/session`, {
+      method:  "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization:  `Bearer ${token}`,
+      },
+      body: JSON.stringify({ name }),
+    });
+    const data = await res.json();
+    setUser(normalizeUser(data.user));
+    setLoading(false);
+    return data;
   };
 
+  // ── signIn ───────────────────────────────────────────────────
   const signIn = async (email, password) => {
+    skipNextAuthChange.current = true; // suppress the listener's duplicate sync
     const result = await signInWithEmailAndPassword(auth, email, password);
-    return syncWithBackend(result.user);
+    const data   = await syncWithBackend(result.user);
+    setLoading(false);
+    return data;
   };
 
+  // ── markOnboardingComplete ───────────────────────────────────
+  const markOnboardingComplete = async (quizAnswers = {}) => {
+    if (!auth.currentUser) return;
+    const token = await auth.currentUser.getIdToken();
+    const res   = await fetch(`${API_URL}/api/quiz/complete`, {
+      method:  "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization:  `Bearer ${token}`,
+      },
+      body: JSON.stringify(quizAnswers),
+    });
+    const data = await res.json();
+    setUser(normalizeUser(data.user ?? { ...user, quizCompleted: true }));
+  };
+
+  // ── getIdToken ───────────────────────────────────────────────
+  const getIdToken = () => auth.currentUser?.getIdToken();
+
+  // ── logout ───────────────────────────────────────────────────
   const logout = async () => {
     const token = await auth.currentUser?.getIdToken();
     if (token) {
       await fetch(`${API_URL}/api/auth/session`, {
-        method: "DELETE",
+        method:  "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
     }
@@ -49,15 +103,14 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
-  const getIdToken = () => auth.currentUser?.getIdToken();
-
-  // Call this after quiz submit to refresh user state locally
-  const refreshUser = (updatedFields) => {
-    setUser(prev => ({ ...prev, ...updatedFields }));
-  };
-
+  // ── listen to Firebase auth state ───────────────────────────
   useEffect(() => {
     return onAuthStateChanged(auth, async (fbUser) => {
+      // If signUp/signIn already synced manually, skip this duplicate fire
+      if (skipNextAuthChange.current) {
+        skipNextAuthChange.current = false;
+        return;
+      }
       if (fbUser) await syncWithBackend(fbUser);
       else setUser(null);
       setLoading(false);
@@ -65,7 +118,9 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, isNewUser, signUp, signIn, logout, getIdToken, refreshUser }}>
+    <AuthContext.Provider
+      value={{ user, loading, signUp, signIn, logout, getIdToken, markOnboardingComplete }}
+    >
       {children}
     </AuthContext.Provider>
   );

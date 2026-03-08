@@ -1,0 +1,138 @@
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
+
+const Y    = "#FDFDA3";
+const OR   = "#E8540A";
+const BG   = "#080808";
+const BR   = "#2a2a2a";
+const MU   = "#5a5a5a";
+const FONT = "'Courier New', Courier, monospace";
+
+function Squiggle({ width = 108 }) {
+  return (
+    <svg width={width} height={10} viewBox={`0 0 ${width} 10`} fill="none"
+      style={{ display: "block", marginTop: 2 }}>
+      <path
+        d={`M2 6 Q${width*0.15} 2 ${width*0.3} 6 Q${width*0.45} 10 ${width*0.6} 5 Q${width*0.75} 2 ${width*0.9} 6 Q${width*0.95} 7 ${width-2} 5`}
+        stroke={Y} strokeWidth="2.8" strokeLinecap="round" fill="none"
+      />
+    </svg>
+  );
+}
+
+export default function LandingPage() {
+  const navigate        = useNavigate();
+  const { user, loading } = useAuth();
+
+  // Already authenticated — skip landing immediately
+  useEffect(() => {
+    if (!loading && user) {
+      navigate(user.onboardingComplete ? "/dashboard" : "/onboarding", { replace: true });
+    }
+  }, [user, loading, navigate]);
+
+  if (loading) return null;
+
+  return (
+    <div style={{
+      position: "relative", width: "100vw", height: "100vh",
+      background: BG, overflow: "hidden",
+      display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+    }}>
+
+      {/* Ambient glows */}
+      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0 }}>
+        <div style={{ position:"absolute", left:"20%",  top:"65%", width:520, height:520, transform:"translate(-50%,-50%)", borderRadius:"50%", background:"rgba(140,60,10,0.55)",  filter:"blur(110px)" }}/>
+        <div style={{ position:"absolute", left:"75%",  top:"40%", width:360, height:360, transform:"translate(-50%,-50%)", borderRadius:"50%", background:"rgba(100,105,18,0.35)", filter:"blur(100px)" }}/>
+        <div style={{ position:"absolute", left:"55%",  top:"80%", width:260, height:260, transform:"translate(-50%,-50%)", borderRadius:"50%", background:"rgba(130,50,10,0.28)",  filter:"blur(90px)"  }}/>
+      </div>
+
+      {/* Logo */}
+      <div style={{ position:"fixed", top:22, left:28, zIndex:50 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+          <span style={{ fontFamily:FONT, fontSize:18, fontWeight:700, color:"#fff" }}>ClubHub</span>
+          <span style={{ fontSize:16 }}>🖊️</span>
+        </div>
+        <Squiggle />
+      </div>
+
+      {/* Content */}
+      <div style={{
+        position:"relative", zIndex:10,
+        display:"flex", flexDirection:"column", alignItems:"center",
+        textAlign:"center", gap:28, padding:"0 24px",
+        animation:"fadeUp 0.5s cubic-bezier(0.4,0,0.2,1) forwards",
+      }}>
+        {/* Tag pill */}
+        <div style={{ border:`1px solid ${BR}`, borderRadius:6, padding:"7px 20px", fontFamily:FONT, fontSize:"0.72rem", color:MU, letterSpacing:"1.8px" }}>
+          remark your calendar
+        </div>
+
+        {/* Headline */}
+        <div>
+          <h1 style={{ fontFamily:FONT, fontSize:"clamp(2.8rem,6vw,5rem)", fontWeight:700, color:"#fff", lineHeight:1.06, letterSpacing:"-2.5px", marginBottom:6 }}>
+            Find where you<br />belong at{" "}
+            <span style={{ color:OR, fontStyle:"italic" }}>UTD.</span>
+          </h1>
+          <div style={{ display:"flex", justifyContent:"center" }}>
+            <Squiggle width={320} />
+          </div>
+        </div>
+
+        {/* Subheading */}
+        <p style={{ fontFamily:FONT, fontSize:"0.95rem", color:MU, maxWidth:480, lineHeight:1.8, letterSpacing:"0.2px" }}>
+          300+ student orgs. One personalized calendar.<br />
+          AI-matched to your major, interests, and schedule.
+        </p>
+
+        {/* CTA buttons */}
+        <div style={{ display:"flex", gap:14, marginTop:8, flexWrap:"wrap", justifyContent:"center" }}>
+          <button
+            onClick={() => navigate("/signup")}
+            style={{
+              padding:"15px 44px", borderRadius:10, border:"none",
+              background:Y, color:"#111",
+              fontFamily:FONT, fontSize:"1rem", fontWeight:700,
+              cursor:"pointer", letterSpacing:"0.3px", transition:"all 0.15s",
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = "#ffffb0"}
+            onMouseLeave={e => e.currentTarget.style.background = Y}
+          >
+            Get Started →
+          </button>
+          <button
+            onClick={() => navigate("/login")}
+            style={{
+              padding:"15px 44px", borderRadius:10,
+              border:`2px solid ${BR}`,
+              background:"transparent", color:"#ccc",
+              fontFamily:FONT, fontSize:"1rem", fontWeight:500,
+              cursor:"pointer", letterSpacing:"0.3px", transition:"all 0.15s",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor="#555"; e.currentTarget.style.color="#fff"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor=BR;    e.currentTarget.style.color="#ccc"; }}
+          >
+            Log In
+          </button>
+        </div>
+
+        {/* Stats bar */}
+        <div style={{ display:"flex", gap:48, marginTop:16, paddingTop:28, borderTop:`1px solid ${BR}`, width:"100%", maxWidth:420, justifyContent:"center" }}>
+          {[["300+","Student Orgs"],["1.8k","Events / Semester"],["24k","UTD Students"]].map(([n,l]) => (
+            <div key={l} style={{ textAlign:"center" }}>
+              <div style={{ fontFamily:FONT, fontSize:"1.5rem", fontWeight:700, color:Y, letterSpacing:"-1px" }}>{n}</div>
+              <div style={{ fontFamily:FONT, fontSize:"0.72rem", color:MU, marginTop:4, letterSpacing:"0.5px" }}>{l}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+        * { box-sizing:border-box; margin:0; padding:0; }
+      `}</style>
+    </div>
+  );
+}

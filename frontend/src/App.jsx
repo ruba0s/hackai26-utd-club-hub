@@ -1,34 +1,45 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./hooks/useAuth";
-import ProtectedRoute from "./components/auth/ProtectedRoute";
-import LoginPage from "./pages/LoginPage";
-import Quiz from "./pages/Quiz";
+import ProtectedRoute  from "./components/auth/ProtectedRoute";
 
-const DashboardPage = () => <div className="p-8 text-xl font-bold">Dashboard (coming soon)</div>;
+import LandingPage  from "./pages/LandingPage";
+import LoginPage    from "./pages/LoginPage";
+import SignupPage   from "./pages/SignupPage";
+import Onboarding   from "./pages/Onboarding";
+import Dashboard    from "./pages/Dashboard";
 
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
+          {/* ── Public ──────────────────────────────────────── */}
+          <Route path="/"       element={<LandingPage />} />
+          <Route path="/login"  element={<LoginPage   />} />
+          <Route path="/signup" element={<SignupPage   />} />
+
+          {/* ── Auth required, quiz NOT yet done ─────────────── */}
           <Route
             path="/onboarding"
             element={
               <ProtectedRoute requireQuiz={false}>
-                <Quiz />
+                <Onboarding />
               </ProtectedRoute>
             }
           />
+
+          {/* ── Auth required + quiz done ─────────────────────── */}
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute>
-                <DashboardPage />
+              <ProtectedRoute requireQuiz={true}>
+                <Dashboard />
               </ProtectedRoute>
             }
           />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+
+          {/* ── Catch-all ────────────────────────────────────── */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

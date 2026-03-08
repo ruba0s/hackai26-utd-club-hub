@@ -500,12 +500,16 @@ function Q6Newsletter({ optIn, setOptIn, onNext }) {
   );
 }
 
+// Loading screen — advances once BOTH:
+//   1. the message animation finishes (~2.5s), AND
+//   2. apiReady is true (API done) OR the 4s safety timeout fires
 function Loading({ onDone, apiReady }) {
   const [idx, setIdx] = useState(0);
   const [animDone, setAnimDone] = useState(false);
+
   const msgs = ["Analyzing your profile…", "Matching clubs to your vibe…", "Ranking this week's events…", "Making your mark ✦"];
 
-  // Run the message ticker once on mount
+  // Message ticker — runs once on mount
   useEffect(() => {
     const t = setInterval(() => {
       setIdx(i => {
@@ -518,14 +522,22 @@ function Loading({ onDone, apiReady }) {
       });
     }, 620);
     return () => clearInterval(t);
-  }, []); // empty deps — run once, never re-run
+  }, []);
 
-  // Advance only when BOTH animation finished and API returned
+  // Advance when anim done AND (api ready OR timeout elapsed)
   useEffect(() => {
-    if (animDone && apiReady) {
-      const t = setTimeout(onDone, 700);
+    if (!animDone) return;
+
+    if (apiReady) {
+      // API already finished — advance immediately after anim
+      const t = setTimeout(onDone, 400);
       return () => clearTimeout(t);
     }
+
+    // API still running — give it a maximum of 4 extra seconds after
+    // the animation finishes, then advance anyway so the user isn't stuck
+    const t = setTimeout(onDone, 4000);
+    return () => clearTimeout(t);
   }, [animDone, apiReady, onDone]);
 
   return (
@@ -597,30 +609,29 @@ function Done({ major, recommendations, onGo }) {
 
 export default function Quiz() {
   const navigate = useNavigate();
-  const { getIdToken, refreshUser } = useAuth();
+  const { getIdToken, markOnboardingComplete } = useAuth();
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
   const [step, setStep] = useState(0);
   const [key,  setKey]  = useState(0);
 
-  const [major,        setMajor]      = useState("");
-  const [level,        setLevel]      = useState("");
-  const [gradYear,     setGradYear]   = useState("");
-  const [interests,    setInterests]  = useState(new Set());
-  const [eventTypes,   setEvTypes]    = useState(new Set());
-  const [clubSearch,   setClubSearch] = useState("");
-  const [clubs,        setClubs]      = useState(new Set());
-  const [optIn,        setOptIn]      = useState(null);
-  const [nebulaClubs,  setNebulaClubs] = useState([]);
+  const [major,        setMajor]        = useState("");
+  const [level,        setLevel]        = useState("");
+  const [gradYear,     setGradYear]     = useState("");
+  const [interests,    setInterests]    = useState(new Set());
+  const [eventTypes,   setEvTypes]      = useState(new Set());
+  const [clubSearch,   setClubSearch]   = useState("");
+  const [clubs,        setClubs]        = useState(new Set());
+  const [optIn,        setOptIn]        = useState(null);
+  const [nebulaClubs,  setNebulaClubs]  = useState([]);
   const [loadingClubs, setLoadingClubs] = useState(false);
   const [recommendations, setRecommendations] = useState([]);
-  // Tracks whether the API call has completed (success or error)
-  const [apiReady, setApiReady] = useState(false);
+  const [apiReady,     setApiReady]     = useState(false);
 
   const go   = n => { setKey(k => k + 1); setStep(n); };
   const next = ()  => go(step + 1);
 
-  // Fetch real clubs from Nebula when user reaches Q5
+  // Fetch clubs from Nebula when user reaches Q5
   useEffect(() => {
     if (step === 6 && nebulaClubs.length === 0) {
       setLoadingClubs(true);
@@ -631,16 +642,18 @@ export default function Quiz() {
           .then(r => r.json())
           .then(data => {
             const names = (data.clubs || []).map(c => c.name).filter(Boolean);
-            setNebulaClubs(names);
+            setNebulaClubs(names.length > 0 ? names : ALL_CLUBS);
           })
-          .catch(() => setNebulaClubs([]))
+          .catch(() => setNebulaClubs(ALL_CLUBS))
           .finally(() => setLoadingClubs(false));
+      }).catch(() => {
+        setNebulaClubs(ALL_CLUBS);
+        setLoadingClubs(false);
       });
     }
   }, [step]);
 
-  // On Loading screen, submit quiz to backend
-  // Use a ref to ensure this only fires once per entry into step 8
+  // Submit quiz on loading screen — fires exactly once via ref guard
   const submitCalledRef = useRef(false);
   useEffect(() => {
     if (step === 8 && !submitCalledRef.current) {
@@ -650,8 +663,8 @@ export default function Quiz() {
       const submit = async () => {
         try {
           const token = await getIdToken();
-          const year = `${level} ${gradYear}`.trim();
-          const res = await fetch(`${API_URL}/api/quiz/submit`, {
+          const year  = `${level} ${gradYear}`.trim();
+          const res   = await fetch(`${API_URL}/api/quiz/submit`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -660,33 +673,43 @@ export default function Quiz() {
             body: JSON.stringify({
               major,
               year,
-              interests: [...interests],
-              clubs: [...clubs],
-              eventTypes: [...eventTypes],
+              interests:       [...interests],
+              clubs:           [...clubs],
+              eventTypes:      [...eventTypes],
               newsletterOptIn: optIn || false,
             }),
           });
           const data = await res.json();
           if (data.recommendations) {
             setRecommendations(data.recommendations);
-            refreshUser({ quizCompleted: true });
           }
+          // Mark onboarding complete in Firebase/backend
+          await markOnboardingComplete({
+            major, year,
+            interests:       [...interests],
+            clubs:           [...clubs],
+            eventTypes:      [...eventTypes],
+            newsletterOptIn: optIn || false,
+          });
         } catch (err) {
           console.error("Quiz submit error:", err);
         } finally {
+          // Always unblock the loading screen, even on error
           setApiReady(true);
         }
       };
 
       submit();
     }
-    // Reset the ref when leaving step 8 so it could re-run if user somehow revisits
+
     if (step !== 8) {
       submitCalledRef.current = false;
     }
   }, [step]);
 
+  // Navigate to dashboard after Done screen
   const handleFinish = () => navigate("/dashboard");
+
   const tog = setter => val =>
     setter(p => { const n = new Set(p); n.has(val) ? n.delete(val) : n.add(val); return n; });
 
@@ -724,7 +747,7 @@ export default function Quiz() {
         {step === 3 && <Q2Year       level={level} gradYear={gradYear} setLevel={setLevel} setGradYear={setGradYear} onNext={next} />}
         {step === 4 && <Q3Interests  selected={interests}  toggle={tog(setInterests)}  onNext={next} />}
         {step === 5 && <Q4EventTypes selected={eventTypes} toggle={tog(setEvTypes)}    onNext={next} />}
-        {step === 6 && <Q5Clubs      search={clubSearch} setSearch={setClubSearch} selected={clubs} toggle={tog(setClubs)} onNext={next} clubs={nebulaClubs} loadingClubs={loadingClubs} />}
+        {step === 6 && <Q5Clubs      search={clubSearch} setSearch={setClubSearch} selected={clubs} toggle={tog(setClubs)} onNext={next} clubs={nebulaClubs.length > 0 ? nebulaClubs : ALL_CLUBS} loadingClubs={loadingClubs} />}
         {step === 7 && <Q6Newsletter optIn={optIn} setOptIn={setOptIn} onNext={next} />}
         {step === 8 && <Loading      onDone={next} apiReady={apiReady} />}
         {step === 9 && <Done         major={major} recommendations={recommendations} onGo={handleFinish} />}
