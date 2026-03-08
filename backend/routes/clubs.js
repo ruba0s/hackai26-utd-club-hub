@@ -2,7 +2,7 @@
 import express from "express";
 import { db } from "../config/firebase.js";
 import verifyToken from "../middleware/verifyToken.js";
-import { fetchAllClubs, fetchClubById, fetchEventsByMonth } from "../services/nebula.js";
+import { fetchAllClubs, fetchClubById, fetchMonthEvents } from "../services/nebula.js";
 
 const router = express.Router();
 

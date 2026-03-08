@@ -24,9 +24,7 @@ router.post("/submit", verifyToken, async (req, res) => {
     // 1. Save to quizResults collection
     await db.collection("quizResults").doc(req.user.uid).set({
       userId: req.user.uid,
-      major,
-      year,
-      interests,
+      major, year, interests,
       clubs: clubs || [],
       eventTypes: eventTypes || [],
       newsletterOptIn: newsletterOptIn || false,
@@ -37,16 +35,36 @@ router.post("/submit", verifyToken, async (req, res) => {
     const allClubs = await fetchAllClubs();
     const recommendations = await generateClubRecommendations(quizAnswers, allClubs);
 
-    // 3. Update user doc with exact schema fields
+    // 3. Update user doc
     await db.collection("users").doc(req.user.uid).update({
-      major,
-      year,
-      interests,
+      major, year, interests,
       newsletterOptIn: newsletterOptIn || false,
       quizCompleted: true,
       recommendations,
       updatedAt: new Date().toISOString(),
     });
+
+    // 4. Auto-follow clubs selected during onboarding
+    // First fetch full club data so we have IDs, not just names
+    const batch = db.batch();
+    for (const clubName of (clubs || [])) {
+      // Search Nebula for this club to get its ID
+      const results = await fetchAllClubs(clubName);
+      const match = results?.find(c =>
+        c.name?.toLowerCase().trim() === clubName.toLowerCase().trim()
+      );
+      if (match) {
+        const docRef = db.collection("userClubs").doc(`${req.user.uid}_${match.id}`);
+        batch.set(docRef, {
+          userId:    req.user.uid,
+          clubId:    match.id,
+          clubName:  match.name,
+          slug:      match.slug,
+          followedAt: new Date().toISOString(),
+        });
+      }
+    }
+    await batch.commit();
 
     return res.status(200).json({ recommendations });
   } catch (err) {

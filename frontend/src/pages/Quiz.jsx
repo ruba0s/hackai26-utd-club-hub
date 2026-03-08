@@ -500,16 +500,12 @@ function Q6Newsletter({ optIn, setOptIn, onNext }) {
   );
 }
 
-// Loading screen — advances once BOTH:
-//   1. the message animation finishes (~2.5s), AND
-//   2. apiReady is true (API done) OR the 4s safety timeout fires
 function Loading({ onDone, apiReady }) {
   const [idx, setIdx] = useState(0);
   const [animDone, setAnimDone] = useState(false);
 
   const msgs = ["Analyzing your profile…", "Matching clubs to your vibe…", "Ranking this week's events…", "Making your mark ✦"];
 
-  // Message ticker — runs once on mount
   useEffect(() => {
     const t = setInterval(() => {
       setIdx(i => {
@@ -524,18 +520,12 @@ function Loading({ onDone, apiReady }) {
     return () => clearInterval(t);
   }, []);
 
-  // Advance when anim done AND (api ready OR timeout elapsed)
   useEffect(() => {
     if (!animDone) return;
-
     if (apiReady) {
-      // API already finished — advance immediately after anim
       const t = setTimeout(onDone, 400);
       return () => clearTimeout(t);
     }
-
-    // API still running — give it a maximum of 4 extra seconds after
-    // the animation finishes, then advance anyway so the user isn't stuck
     const t = setTimeout(onDone, 4000);
     return () => clearTimeout(t);
   }, [animDone, apiReady, onDone]);
@@ -662,8 +652,20 @@ export default function Quiz() {
 
       const submit = async () => {
         try {
+          const year = `${level} ${gradYear}`.trim();
+
+          // ── Mark complete FIRST (optimistic) so ProtectedRoute lets the
+          //    user through to /dashboard regardless of how long the AI takes.
+          await markOnboardingComplete({
+            major, year,
+            interests:       [...interests],
+            clubs:           [...clubs],
+            eventTypes:      [...eventTypes],
+            newsletterOptIn: optIn || false,
+          });
+
+          // ── Then fire the slow Gemini recommendations call
           const token = await getIdToken();
-          const year  = `${level} ${gradYear}`.trim();
           const res   = await fetch(`${API_URL}/api/quiz/submit`, {
             method: "POST",
             headers: {
@@ -683,18 +685,9 @@ export default function Quiz() {
           if (data.recommendations) {
             setRecommendations(data.recommendations);
           }
-          // Mark onboarding complete in Firebase/backend
-          await markOnboardingComplete({
-            major, year,
-            interests:       [...interests],
-            clubs:           [...clubs],
-            eventTypes:      [...eventTypes],
-            newsletterOptIn: optIn || false,
-          });
         } catch (err) {
           console.error("Quiz submit error:", err);
         } finally {
-          // Always unblock the loading screen, even on error
           setApiReady(true);
         }
       };
@@ -707,7 +700,6 @@ export default function Quiz() {
     }
   }, [step]);
 
-  // Navigate to dashboard after Done screen
   const handleFinish = () => navigate("/dashboard");
 
   const tog = setter => val =>
