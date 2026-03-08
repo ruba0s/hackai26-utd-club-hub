@@ -82,7 +82,7 @@ export const flattenAndFilterMazevoEvents = (mazevoData, clubNames) => {
  * filtered to only the provided club names.
  * Returns a flat array sorted by date/time.
  */
-export const fetchMonthEvents = async (year, month, clubNames) => {
+export const fetchEventsByMonth = async (year, month, clubNames) => {
   const daysInMonth = new Date(year, month, 0).getDate();
 
   const dates = Array.from({ length: daysInMonth }, (_, i) => {

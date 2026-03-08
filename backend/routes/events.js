@@ -1,7 +1,7 @@
 // backend/routes/events.js
 import express from "express";
 import { db } from "../config/firebase.js";
-import { fetchEventsByDate, fetchEventsForRange, fetchMonthEvents } from "../services/nebula.js";
+import { fetchEventsByDate, fetchEventsForRange, fetchEventsByMonth } from "../services/nebula.js";
 import verifyToken from "../middleware/verifyToken.js";
 
 const router = express.Router();
